@@ -1,35 +1,33 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Mic, Type, ListTodo, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AudioRecorder, formatRecordingTime } from "@/lib/audioRecorder";
 import { transcribeAudio } from "@/lib/speechService";
 import { structurizeText } from "@/lib/textService";
-import { supabase } from "@/lib/supabaseClient";
-
-/**
- * 主输入组件的属性接口
- */
-interface MainInputProps {
-	/** 输入完成时的回调函数，传递输入内容和是否为语音输入 */
-	onInputComplete: (input: string, isVoice: boolean) => void;
-	/** 导航回调函数，用于切换到不同的屏幕 */
-	onNavigate: (screen: "dashboard" | "settings") => void;
-	/** 是否正在处理中的状态 */
-	isProcessing: boolean;
-}
+import { useAuth } from "@/components/AuthProvider";
+import { useApp } from "@/contexts/AppContext";
+import type { Task } from "@/types/index";
 
 /**
  * 主输入组件 - MindStream应用的核心输入界面
  * 支持语音和文字两种输入方式，提供流畅的用户体验
  */
-export default function MainInput({
-	onInputComplete,
-	onNavigate,
-	isProcessing,
-}: MainInputProps) {
+export default function MainInput() {
+	const router = useRouter();
+	const { user } = useAuth();
+	const { 
+		setGeneratedTasks, 
+		isLoading, 
+		setIsLoading, 
+		error, 
+		setError, 
+		clearError,
+		setTranscribedText 
+	} = useApp();
 	// 当前输入模式：语音、文字或未选择
 	const [inputMode, setInputMode] = useState<"voice" | "text" | null>(null);
 	// 文字输入内容
@@ -45,7 +43,7 @@ export default function MainInput({
 	// 语音转文字状态
 	const [isTranscribing, setIsTranscribing] = useState(false);
 	// 转录后的文本
-	const [transcribedText, setTranscribedText] = useState("");
+	const [localTranscribedText, setLocalTranscribedText] = useState("");
 
 	/**
 		 * 处理语音输入的函数
@@ -64,24 +62,23 @@ export default function MainInput({
 						recordingTimerRef.current = null;
 					}
 					
-					// 获取当前用户
-					const { data: { user } } = await supabase.auth.getUser();
 					if (!user) {
-						throw new Error('用户未登录');
-					}
-					
-					// 停止录音并获取音频数据
-					if (audioRecorderRef.current) {
-						const audioBlob = await audioRecorderRef.current.stopRecording();
+							throw new Error('用户未登录');
+						}
 						
-						// 调用语音转文字API
-						const transcribedText = await transcribeAudio(audioBlob, user.id);
-						setTranscribedText(transcribedText);
-						setIsTranscribing(false);
-						
-						// 直接处理转录后的文本
-						await handleProcessText(transcribedText, true);
-					}
+						// 停止录音并获取音频数据
+						if (audioRecorderRef.current) {
+							const audioBlob = await audioRecorderRef.current.stopRecording();
+							
+							// 调用语音转文字API
+							const transcribedText = await transcribeAudio(audioBlob, user.id);
+							setLocalTranscribedText(transcribedText);
+							setTranscribedText(transcribedText);
+							setIsTranscribing(false);
+							
+							// 直接处理转录后的文本
+							await handleProcessText(transcribedText, true);
+						}
 				} catch (error) {
 					console.error('语音处理失败:', error);
 					setIsTranscribing(false);
@@ -135,8 +132,9 @@ export default function MainInput({
 		 */
 		const handleProcessText = async (text: string, isVoice: boolean) => {
 			try {
-				// 获取当前用户
-				const { data: { user } } = await supabase.auth.getUser();
+				setIsLoading(true);
+				clearError();
+				
 				if (!user) {
 					throw new Error('用户未登录');
 				}
@@ -144,54 +142,76 @@ export default function MainInput({
 				// 调用结构化处理
 				const structuredData = await structurizeText(text, user.id);
 				
-				// 传递给父组件处理
-				onInputComplete(JSON.stringify(structuredData), isVoice);
+				// 转换为Task格式
+				const tasksToGenerate: Task[] = structuredData.tasks.map((taskData: any) => ({
+					id: '', // 将在保存时生成
+					title: taskData.title,
+					category: taskData.category,
+					estimatedTime: taskData.estimatedTime,
+					subtasks: taskData.subtasks.map((subtask: any) => ({
+						id: '', // 将在保存时生成
+						title: subtask.title,
+						completed: false
+					})),
+					completed: false,
+					createdAt: new Date().toISOString()
+				}));
+
+				setGeneratedTasks(tasksToGenerate);
+				
+				// 跳转到结果页面
+				router.push('/result');
+				
 			} catch (error) {
 				console.error('文本处理失败:', error);
-				const errorMessage = error instanceof Error ? error.message : '请重试';
-				alert(`文本处理失败: ${errorMessage}`);
+				const errorMessage = error instanceof Error ? error.message : '文本处理失败';
+				setError(errorMessage);
+			} finally {
+				setIsLoading(false);
 			}
 		};
 
 	// 处理中状态的加载界面
-	if (isProcessing || isTranscribing) {
-		return (
-			<div className="min-h-screen flex flex-col items-center justify-center p-4">
-				<div className="text-center space-y-6">
-					{/* 多层旋转加载动画 */}
-					<div className="relative w-24 h-24 mx-auto">
-						{/* 外层静态圆环 */}
-						<div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
-						{/* 中层顺时针旋转圆环 */}
-						<div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
-						{/* 内层逆时针旋转圆环 */}
-						<div
-							className="absolute inset-2 border-4 border-blue-400 rounded-full border-b-transparent animate-spin"
-							style={{
-								animationDirection: "reverse",
-								animationDuration: "1.5s",
-							}}
-						></div>
-					</div>
-					{/* 加载提示文字 */}
-					<div className="space-y-2">
-						<h2 className="text-purple-600">
-							{isTranscribing ? "正在转换语音..." : "正在为你理清思绪..."}
-						</h2>
-						<p className="text-gray-600">
-							{isTranscribing ? "AI 正在理解你的话语" : "魔法进行中，别急，我们来搞定混乱"}
-						</p>
-						{transcribedText && (
-							<div className="mt-4 p-4 bg-gray-100 rounded-lg max-w-md">
-								<p className="text-sm text-gray-700">识别到的文字：</p>
-								<p className="text-gray-900">{transcribedText}</p>
-							</div>
-						)}
+		if (isLoading || isTranscribing) {
+			return (
+				<div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-blue-50">
+					<div className="text-center space-y-8">
+						{/* 魔法般的加载动画 */}
+						<div className="relative w-32 h-32 mx-auto">
+							{/* 外层静态圆环 */}
+							<div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+							{/* 中层顺时针旋转圆环 */}
+							<div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+							{/* 内层逆时针旋转圆环 */}
+							<div
+								className="absolute inset-2 border-4 border-blue-400 rounded-full border-b-transparent animate-spin"
+								style={{
+									animationDirection: "reverse",
+									animationDuration: "1.5s",
+								}}
+							></div>
+							{/* 中心点 */}
+							<div className="absolute inset-6 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full animate-pulse"></div>
+						</div>
+						{/* 加载提示文字 */}
+						<div className="space-y-3">
+							<h2 className="text-2xl font-semibold text-purple-600">
+								{isTranscribing ? "正在转换语音..." : "正在为你理清思绪..."}
+							</h2>
+							<p className="text-lg text-gray-600">
+								{isTranscribing ? "AI 正在理解你的话语" : "魔法进行中，别急，我们来搞定混乱"}
+							</p>
+							{localTranscribedText && (
+								<div className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-2xl max-w-md shadow-lg border border-purple-100">
+									<p className="text-sm text-purple-700 font-medium mb-2">识别到的文字：</p>
+									<p className="text-gray-900 leading-relaxed">{localTranscribedText}</p>
+								</div>
+							)}
+						</div>
 					</div>
 				</div>
-			</div>
-		);
-	}
+			);
+		}
 
 	// 文字输入模式界面
 	if (inputMode === "text") {
@@ -247,37 +267,38 @@ export default function MainInput({
 				</div>
 
 				{/* 语音输入按钮区域 */}
-				<div className="relative">
-					{/* 主麦克风按钮 */}
-					<button
-						onClick={handleVoiceInput}
-						className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 ${
-							isRecording
-								? "bg-red-500 hover:bg-red-600 scale-110"
-								: "bg-purple-600 hover:bg-purple-700 hover:scale-105"
-						} shadow-2xl`}
-					>
-						<Mic className="w-24 h-24 text-white" />
-					</button>
+					<div className="relative">
+						{/* 主麦克风按钮 - 更大更醒目 */}
+						<button
+							onClick={handleVoiceInput}
+							className={`w-64 h-64 rounded-full flex items-center justify-center transition-all duration-300 ${
+								isRecording
+									? "bg-gradient-to-br from-red-500 to-red-600 scale-110 shadow-red-500/50"
+									: "bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 hover:scale-105 shadow-purple-500/50"
+							} shadow-2xl border-4 border-white`}
+						>
+							<Mic className={`${isRecording ? 'w-32 h-32' : 'w-28 h-28'} text-white transition-all duration-300`} />
+						</button>
 
-					{/* 录音时的动画效果 */}
-					{isRecording && (
-						<div className="absolute inset-0 -z-10">
-							<div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-20"></div>
-							<div className="absolute inset-0 bg-red-400 rounded-full animate-pulse opacity-30"></div>
-						</div>
-					)}
-
-					{/* 录音计时器显示 */}
+						{/* 录音时的多层动画效果 */}
 						{isRecording && (
-							<div className="absolute -bottom-16 left-1/2 -translate-x-1/2 text-center">
-								<p className="text-gray-600">录音中...</p>
-								<p className="text-2xl text-red-600 tabular-nums">
+							<div className="absolute inset-0 -z-10">
+								<div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-20"></div>
+								<div className="absolute inset-0 bg-red-400 rounded-full animate-pulse opacity-30"></div>
+								<div className="absolute inset-4 bg-red-300 rounded-full animate-ping opacity-15 animation-delay-300"></div>
+							</div>
+						)}
+
+						{/* 录音计时器显示 - 更突出 */}
+						{isRecording && (
+							<div className="absolute -bottom-20 left-1/2 -translate-x-1/2 text-center bg-white/90 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-lg">
+								<p className="text-gray-700 font-medium">正在录音...</p>
+								<p className="text-3xl text-red-600 tabular-nums font-bold">
 									{formatRecordingTime(recordingTime)}
 								</p>
 							</div>
 						)}
-				</div>
+					</div>
 
 				{/* 文字输入选项（仅在非录音状态显示） */}
 				{!isRecording && (
@@ -296,28 +317,28 @@ export default function MainInput({
 			</div>
 
 			{/* 底部导航栏 */}
-			<div className="border-t bg-white p-4">
-				<div className="max-w-md mx-auto flex justify-around">
-					<Button
-						variant="ghost"
-						size="lg"
-						onClick={() => onNavigate("dashboard")}
-						className="flex flex-col gap-1 h-auto py-3"
-					>
-						<ListTodo className="w-6 h-6" />
-						<span className="text-xs">今日待办</span>
-					</Button>
-					<Button
-						variant="ghost"
-						size="lg"
-						onClick={() => onNavigate("settings")}
-						className="flex flex-col gap-1 h-auto py-3"
-					>
-						<Settings className="w-6 h-6" />
-						<span className="text-xs">设置</span>
-					</Button>
+				<div className="border-t bg-white p-4">
+					<div className="max-w-md mx-auto flex justify-around">
+						<Button
+							variant="ghost"
+							size="lg"
+							onClick={() => router.push("/dashboard")}
+							className="flex flex-col gap-1 h-auto py-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+						>
+							<ListTodo className="w-6 h-6" />
+							<span className="text-xs">今日待办</span>
+						</Button>
+						<Button
+							variant="ghost"
+							size="lg"
+							onClick={() => router.push("/settings")}
+							className="flex flex-col gap-1 h-auto py-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+						>
+							<Settings className="w-6 h-6" />
+							<span className="text-xs">设置</span>
+						</Button>
+					</div>
 				</div>
-			</div>
 		</div>
 	);
 }

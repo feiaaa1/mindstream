@@ -1,37 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Edit, ArrowLeft, Save } from "lucide-react";
+import { useApp } from "@/contexts/AppContext";
 import type { Task } from "@/types/index";
-
-/**
- * 任务生成结果页面的属性接口
- */
-interface TaskResultProps {
-  /** 生成的任务数据 */
-  tasks: Task[];
-  /** 确认保存任务的回调函数 */
-  onConfirm: (tasks: Task[]) => void;
-  /** 返回修改的回调函数 */
-  onBack: () => void;
-  /** 是否正在保存 */
-  isSaving: boolean;
-}
 
 /**
  * 任务生成结果展示页面
  * 显示AI生成的结构化任务，允许用户预览、编辑和确认
  */
-export default function TaskResult({
-  tasks,
-  onConfirm,
-  onBack,
-  isSaving
-}: TaskResultProps) {
+export default function TaskResult() {
+  const router = useRouter();
+  const { 
+    generatedTasks, 
+    saveTasksToDatabase, 
+    isLoading, 
+    error, 
+    clearError 
+  } = useApp();
   // 编辑状态管理
-  const [editingTasks, setEditingTasks] = useState<Task[]>(tasks || []);
+  const [editingTasks, setEditingTasks] = useState<Task[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+
+  // 初始化编辑任务
+  useEffect(() => {
+    if (generatedTasks.length > 0) {
+      setEditingTasks(generatedTasks);
+    } else {
+      // 如果没有生成的任务，重定向到输入页面
+      router.push('/input');
+    }
+  }, [generatedTasks, router]);
+
+  // 清除错误
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
 
   /**
    * 更新任务标题
@@ -80,19 +86,31 @@ export default function TaskResult({
    * 取消编辑
    */
   const handleCancelEdit = () => {
-    setEditingTasks(tasks || []);
+    setEditingTasks(generatedTasks);
     setIsEditing(false);
+  };
+
+  /**
+   * 返回输入页面
+   */
+  const handleBack = () => {
+    router.push('/input');
   };
 
   /**
    * 确认保存所有任务
    */
-  const handleConfirm = () => {
-    onConfirm(editingTasks);
+  const handleConfirm = async () => {
+    try {
+      await saveTasksToDatabase(editingTasks);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('保存任务失败:', error);
+    }
   };
 
   // 保存中状态
-  if (isSaving) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-6">
@@ -120,10 +138,17 @@ export default function TaskResult({
           </p>
         </div>
 
+        {/* 错误提示 */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         {/* 操作按钮区域 */}
         <div className="flex gap-4 mb-6">
           <Button
-            onClick={onBack}
+            onClick={handleBack}
             variant="outline"
             className="gap-2"
           >

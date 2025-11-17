@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
+import { AppProvider } from "@/contexts/AppContext";
 import { Toaster } from "react-hot-toast";
+import GlobalNotifications from "@/components/GlobalNotifications";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -27,18 +29,21 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body
-				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-			>
-				<AuthProvider>
-					<Toaster
-						position="top-center" // 设置通知出现的位置
-						reverseOrder={false}
-					/>
-					<div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-						{children}
-					</div>
-				</AuthProvider>
-			</body>
+					className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+				>
+					<AuthProvider>
+							<AppProvider>
+								<Toaster
+									position="top-center" // 设置通知出现的位置
+									reverseOrder={false}
+								/>
+								<GlobalNotifications />
+								<div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
+									{children}
+								</div>
+							</AppProvider>
+						</AuthProvider>
+				</body>
 		</html>
 	);
 }

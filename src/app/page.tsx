@@ -1,22 +1,40 @@
 "use client";
 
-// React hooks 导入
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-
-// Next.js 路由导入
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-// 主应用组件
-import MindStreamApp from "@/components/MindStreamApp";
+import { useAuth } from "@/components/AuthProvider";
 
 /**
  * 主页组件 - MindStream 应用的首页
- * 功能：
- * 1. 用户身份验证检查
- * 2. 显示用户欢迎界面
- * 3. 提供导航到其他功能页面的入口
- * 4. 处理用户登出
+ * 重定向到适当的页面
  */
 export default function Home() {
-	return <MindStreamApp />;
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (user) {
+        // 用户已登录，重定向到仪表板
+        router.push('/dashboard');
+      } else {
+        // 用户未登录，重定向到登录页
+        router.push('/login');
+      }
+    }
+  }, [user, isLoading, router]);
+
+  // 显示加载状态
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

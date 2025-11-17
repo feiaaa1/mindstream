@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,12 +23,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
-	Eye,
-	EyeOff,
-	Save,
-	ArrowLeft,
-	ExternalLink,
-	Trash2,
+    Eye,
+    EyeOff,
+    Save,
+    ArrowLeft,
+    ExternalLink,
+    Trash2,
+    LogOut,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -44,11 +46,8 @@ import {
 } from "@/lib/aiProviders";
 import type { UserSettings } from "@/lib/userSettings";
 
-interface SettingsPageProps {
-	onNavigate: (screen: "input" | "dashboard") => void;
-}
-
-export default function SettingsPage({ onNavigate }: SettingsPageProps) {
+export default function SettingsPage() {
+    const router = useRouter();
 	const [settings, setSettings] = useState<UserSettings | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
@@ -118,28 +117,51 @@ export default function SettingsPage({ onNavigate }: SettingsPageProps) {
 	};
 
 	const handleRemoveApiKey = async (provider: string) => {
-		if (!confirm("确定要删除这个API密钥吗？")) return;
+        if (!confirm("确定要删除这个API密钥吗？")) return;
 
-		try {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-			if (!user) return;
+        try {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) return;
 
-			await removeApiKey(user.id, provider);
-			await loadSettings();
+            await removeApiKey(user.id, provider);
+            await loadSettings();
 
-			// 清除临时密钥
-			const newTempKeys = { ...tempApiKeys };
-			delete newTempKeys[provider];
-			setTempApiKeys(newTempKeys);
+            // 清除临时密钥
+            const newTempKeys = { ...tempApiKeys };
+            delete newTempKeys[provider];
+            setTempApiKeys(newTempKeys);
 
-			alert("API密钥已删除");
-		} catch (error) {
-			console.error("删除API密钥失败:", error);
-			alert("删除失败，请重试");
-		}
-	};
+            alert("API密钥已删除");
+        } catch (error) {
+            console.error("删除API密钥失败:", error);
+            alert("删除失败，请重试");
+        }
+    };
+
+    const handleLogout = async () => {
+        if (!confirm("确定要退出登录吗？")) return;
+
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error("退出登录失败:", error);
+                alert("退出登录失败，请重试");
+                return;
+            }
+            
+            // 清除本地状态
+            setSettings(null);
+            setTempApiKeys({});
+            
+            // 重定向到登录页
+            router.push("/login");
+        } catch (error) {
+            console.error("退出登录失败:", error);
+            alert("退出登录失败，请重试");
+        }
+    };
 
 	const toggleApiKeyVisibility = (provider: string) => {
 		setShowApiKeys((prev) => ({
@@ -190,14 +212,14 @@ export default function SettingsPage({ onNavigate }: SettingsPageProps) {
 				{/* 页面标题 */}
 				<div className="flex items-center gap-4 mb-8">
 					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => onNavigate("dashboard")}
-						className="gap-2"
-					>
-						<ArrowLeft className="w-4 h-4" />
-						返回
-					</Button>
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push("/dashboard")}
+                        className="gap-2"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        返回
+                    </Button>
 					<div>
 						<h1 className="text-2xl font-bold text-purple-600">设置</h1>
 						<p className="text-gray-600">配置你的AI服务和偏好设置</p>
@@ -568,20 +590,52 @@ export default function SettingsPage({ onNavigate }: SettingsPageProps) {
 								))}
 							</CardContent>
 						</Card>
-					</TabsContent>
-				</Tabs>
 
-				{/* 保存按钮 */}
-				<div className="flex justify-end pt-6">
-					<Button
-						onClick={handleSaveSettings}
-						disabled={saving}
-						className="gap-2"
-					>
-						<Save className="w-4 h-4" />
-						{saving ? "保存中..." : "保存设置"}
-					</Button>
-				</div>
+                        {/* 账户管理 */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-red-600">账户管理</CardTitle>
+                                <CardDescription>
+                                    管理你的账户和登录状态
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-medium text-red-800">退出登录</h4>
+                                                <p className="text-sm text-red-600">
+                                                    退出当前账户，返回登录页面
+                                                </p>
+                                            </div>
+                                            <Button
+                                                variant="destructive"
+                                                onClick={handleLogout}
+                                                className="gap-2"
+                                            >
+                                                <LogOut className="w-4 h-4" />
+                                                退出登录
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+
+                {/* 保存按钮 */}
+                <div className="flex justify-end pt-6">
+                    <Button
+                        onClick={handleSaveSettings}
+                        disabled={saving}
+                        className="gap-2"
+                    >
+                        <Save className="w-4 h-4" />
+                        {saving ? "保存中..." : "保存设置"}
+                    </Button>
+                </div>
 			</div>
 		</div>
 	);
