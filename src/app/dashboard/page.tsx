@@ -17,15 +17,31 @@ import { useAuth } from "@/components/AuthProvider";
 import { useApp } from "@/contexts/AppContext";
 import type { Task } from "@/types/index";
 
+interface DashboardScreenProps {
+	tasks?: Task[];
+	onTaskUpdate?: (token: any) => any;
+	onStartFocus?: (task: Task) => void;
+	onNavigate?: (screen: "input" | "settings" | "dashboard") => void;
+	accessToken?: any;
+}
+
 /**
  * Dashboard 主页面组件
  * 显示用户的任务列表，包括进行中和已完成的任务
  * 提供任务管理、专注模式启动等功能
  */
-export default function DashboardScreen() {
+export default function DashboardScreen({ 
+	tasks: propTasks, 
+	onTaskUpdate, 
+	onStartFocus, 
+	onNavigate, 
+	accessToken 
+}: DashboardScreenProps = {}) {
 	const router = useRouter();
 	const { user } = useAuth();
-	const { tasks, loadUserTasks } = useApp();
+	const { tasks: contextTasks, loadUserTasks } = useApp();
+	// 使用传入的 tasks 或者从 context 获取的 tasks
+	const tasks = propTasks || contextTasks;
 	// 存储展开状态的任务ID集合
 	const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
@@ -40,7 +56,11 @@ export default function DashboardScreen() {
 		 * 开始专注模式
 		 */
 		const handleStartFocus = (task: Task) => {
-			router.push(`/focus?taskId=${task.id}`);
+			if (onStartFocus) {
+				onStartFocus(task);
+			} else {
+				router.push(`/focus?taskId=${task.id}`);
+			}
 		};
 
 	/**
@@ -97,7 +117,11 @@ export default function DashboardScreen() {
 				}
 
 				// 更新成功后刷新任务列表
-				await loadUserTasks();
+				if (onTaskUpdate) {
+					onTaskUpdate(accessToken);
+				} else {
+					await loadUserTasks();
+				}
 			} catch (error) {
 				console.error("Error updating task:", error);
 				alert('更新任务失败，请重试');
@@ -300,7 +324,13 @@ export default function DashboardScreen() {
 							<h3 className="text-xl text-gray-600 mb-2">还没有任何任务</h3>
 							<p className="text-gray-400 mb-6">把你脑子里的想法倾倒出来，让我们帮你整理</p>
 							<Button
-								onClick={() => router.push("/input")}
+								onClick={() => {
+									if (onNavigate) {
+										onNavigate("input");
+									} else {
+										router.push("/input");
+									}
+								}}
 								className="bg-purple-600 hover:bg-purple-700 min-h-[48px] px-8"
 							>
 								开始添加想法
@@ -333,7 +363,13 @@ export default function DashboardScreen() {
 						<Button
 							variant="ghost"
 							size="lg"
-							onClick={() => router.push("/input")}
+							onClick={() => {
+								if (onNavigate) {
+									onNavigate("input");
+								} else {
+									router.push("/input");
+								}
+							}}
 							className="flex flex-col gap-1 h-auto py-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
 						>
 							<Home className="w-6 h-6" />
@@ -343,7 +379,13 @@ export default function DashboardScreen() {
 						<Button
 							variant="ghost"
 							size="lg"
-							onClick={() => router.push("/settings")}
+							onClick={() => {
+								if (onNavigate) {
+									onNavigate("settings");
+								} else {
+									router.push("/settings");
+								}
+							}}
 							className="flex flex-col gap-1 h-auto py-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
 						>
 							<Settings className="w-6 h-6" />

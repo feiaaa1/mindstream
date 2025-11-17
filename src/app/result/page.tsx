@@ -7,11 +7,18 @@ import { CheckCircle, Edit, ArrowLeft, Save } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import type { Task } from "@/types/index";
 
+interface TaskResultProps {
+  tasks?: Task[];
+  onConfirm?: (tasksToSave: Task[]) => Promise<void>;
+  onBack?: () => void;
+  isSaving?: boolean;
+}
+
 /**
  * 任务生成结果展示页面
  * 显示AI生成的结构化任务，允许用户预览、编辑和确认
  */
-export default function TaskResult() {
+export default function TaskResult({ tasks, onConfirm, onBack, isSaving }: TaskResultProps = {}) {
   const router = useRouter();
   const { 
     generatedTasks, 
@@ -26,13 +33,14 @@ export default function TaskResult() {
 
   // 初始化编辑任务
   useEffect(() => {
-    if (generatedTasks.length > 0) {
-      setEditingTasks(generatedTasks);
+    const tasksToUse = tasks || generatedTasks;
+    if (tasksToUse.length > 0) {
+      setEditingTasks(tasksToUse);
     } else {
       // 如果没有生成的任务，重定向到输入页面
       router.push('/input');
     }
-  }, [generatedTasks, router]);
+  }, [tasks, generatedTasks, router]);
 
   // 清除错误
   useEffect(() => {
@@ -86,7 +94,8 @@ export default function TaskResult() {
    * 取消编辑
    */
   const handleCancelEdit = () => {
-    setEditingTasks(generatedTasks);
+    const tasksToUse = tasks || generatedTasks;
+    setEditingTasks(tasksToUse);
     setIsEditing(false);
   };
 
@@ -94,7 +103,11 @@ export default function TaskResult() {
    * 返回输入页面
    */
   const handleBack = () => {
-    router.push('/input');
+    if (onBack) {
+      onBack();
+    } else {
+      router.push('/input');
+    }
   };
 
   /**
@@ -102,15 +115,19 @@ export default function TaskResult() {
    */
   const handleConfirm = async () => {
     try {
-      await saveTasksToDatabase(editingTasks);
-      router.push('/dashboard');
+      if (onConfirm) {
+        await onConfirm(editingTasks);
+      } else {
+        await saveTasksToDatabase(editingTasks);
+        router.push('/dashboard');
+      }
     } catch (error) {
       console.error('保存任务失败:', error);
     }
   };
 
   // 保存中状态
-  if (isLoading) {
+  if (isSaving || isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-6">

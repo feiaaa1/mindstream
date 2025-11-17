@@ -12,11 +12,17 @@ import { useAuth } from "@/components/AuthProvider";
 import { useApp } from "@/contexts/AppContext";
 import type { Task } from "@/types/index";
 
+interface MainInputProps {
+	onInputComplete?: (input: string, isVoice: boolean) => Promise<void>;
+	onNavigate?: (screen: "input" | "settings" | "dashboard") => void;
+	isProcessing?: boolean;
+}
+
 /**
  * 主输入组件 - MindStream应用的核心输入界面
  * 支持语音和文字两种输入方式，提供流畅的用户体验
  */
-export default function MainInput() {
+export default function MainInput({ onInputComplete, onNavigate, isProcessing }: MainInputProps = {}) {
 	const router = useRouter();
 	const { user } = useAuth();
 	const { 
