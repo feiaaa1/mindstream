@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -209,6 +211,16 @@ export function ReviewScreen({
 					</Button>
 				</div>
 			</div>
+		</div>
+	);
+}
+
+export default function ReviewPage() {
+	// This is a placeholder page component
+	// The actual ReviewScreen component should be used within the app
+	return (
+		<div className="min-h-screen flex items-center justify-center">
+			<p className="text-gray-500">Review page - component should be integrated into the main app</p>
 		</div>
 	);
 }

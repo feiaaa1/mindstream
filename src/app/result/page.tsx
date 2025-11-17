@@ -30,7 +30,7 @@ export default function TaskResult({
   isSaving
 }: TaskResultProps) {
   // 编辑状态管理
-  const [editingTasks, setEditingTasks] = useState<Task[]>(tasks);
+  const [editingTasks, setEditingTasks] = useState<Task[]>(tasks || []);
   const [isEditing, setIsEditing] = useState(false);
 
   /**
@@ -80,7 +80,7 @@ export default function TaskResult({
    * 取消编辑
    */
   const handleCancelEdit = () => {
-    setEditingTasks(tasks);
+    setEditingTasks(tasks || []);
     setIsEditing(false);
   };
 
@@ -162,7 +162,7 @@ export default function TaskResult({
 
         {/* 任务列表 */}
         <div className="space-y-6 mb-8">
-          {editingTasks.map((task, taskIndex) => (
+          {editingTasks?.map((task, taskIndex) => (
             <div
               key={taskIndex}
               className="bg-white rounded-2xl shadow-md border-2 border-purple-100 p-6"
@@ -227,7 +227,7 @@ export default function TaskResult({
               {/* 子任务列表 */}
               <div className="space-y-2">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">子任务:</h4>
-                {task.subtasks.map((subtask, subtaskIndex) => (
+                {task.subtasks?.map((subtask, subtaskIndex) => (
                   <div key={subtaskIndex} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
                     <CheckCircle className="w-4 h-4 text-gray-400" />
                     {isEditing ? (

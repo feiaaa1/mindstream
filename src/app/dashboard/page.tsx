@@ -104,9 +104,9 @@ export default function DashboardScreen({
 	};
 
 	// 筛选出进行中的任务（未完成的任务）
-	const activeTasks = tasks.filter((t) => !t.completed);
+	const activeTasks = tasks?.filter((t) => !t.completed) || [];
 	// 筛选出已完成的任务
-	const completedTasks = tasks.filter((t) => t.completed);
+	const completedTasks = tasks?.filter((t) => t.completed) || [];
 
 	/**
 	 * 计算任务的完成进度百分比

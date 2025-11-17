@@ -87,7 +87,8 @@ export default function MainInput({
 					setIsTranscribing(false);
 					setIsRecording(false);
 					setRecordingTime(0);
-					alert(`语音处理失败: ${error.message || '请重试'}`);
+					const errorMessage = error instanceof Error ? error.message : '请重试';
+					alert(`语音处理失败: ${errorMessage}`);
 				}
 			} else {
 				// 开始录音
@@ -147,7 +148,8 @@ export default function MainInput({
 				onInputComplete(JSON.stringify(structuredData), isVoice);
 			} catch (error) {
 				console.error('文本处理失败:', error);
-				alert(`文本处理失败: ${error.message || '请重试'}`);
+				const errorMessage = error instanceof Error ? error.message : '请重试';
+				alert(`文本处理失败: ${errorMessage}`);
 			}
 		};
 
