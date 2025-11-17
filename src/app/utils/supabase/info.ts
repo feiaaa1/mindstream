@@ -1,0 +1,13 @@
+// Supabase 配置信息
+// 请将这些值替换为你的实际 Supabase 项目配置
+
+export const projectId =
+	process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID || "tjirouosnadmtpcndcik";
+export const publicAnonKey =
+	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqaXJvdW9zbmFkbXRwY25kY2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMDQ1MjksImV4cCI6MjA3ODY4MDUyOX0.zvZ4vPmTKFVZWfvAeAXAMU660YIZFMxRWa6AHT3Ails";
+
+// 如果需要在服务端使用，也可以导出服务端密钥
+export const serviceRoleKey =
+	process.env.SUPABASE_SERVICE_ROLE_KEY ||
+	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqaXJvdW9zbmFkbXRwY25kY2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMDQ1MjksImV4cCI6MjA3ODY4MDUyOX0.zvZ4vPmTKFVZWfvAeAXAMU660YIZFMxRWa6AHT3Ails";
