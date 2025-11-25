@@ -30,12 +30,12 @@ interface DashboardScreenProps {
  * 显示用户的任务列表，包括进行中和已完成的任务
  * 提供任务管理、专注模式启动等功能
  */
-export default function DashboardScreen({ 
-	tasks: propTasks, 
-	onTaskUpdate, 
-	onStartFocus, 
-	onNavigate, 
-	accessToken 
+export default function DashboardScreen({
+	tasks: propTasks,
+	onTaskUpdate,
+	onStartFocus,
+	onNavigate,
+	accessToken,
 }: DashboardScreenProps = {}) {
 	const router = useRouter();
 	const { user } = useAuth();
@@ -48,20 +48,20 @@ export default function DashboardScreen({
 	// 检查用户登录状态
 	useEffect(() => {
 		if (!user) {
-			router.push('/login');
+			router.push("/login");
 		}
 	}, [user, router]);
 
 	/**
-		 * 开始专注模式
-		 */
-		const handleStartFocus = (task: Task) => {
-			if (onStartFocus) {
-				onStartFocus(task);
-			} else {
-				router.push(`/focus?taskId=${task.id}`);
-			}
-		};
+	 * 开始专注模式
+	 */
+	const handleStartFocus = (task: Task) => {
+		if (onStartFocus) {
+			onStartFocus(task);
+		} else {
+			router.push(`/focus?taskId=${task.id}`);
+		}
+	};
 
 	/**
 	 * 切换任务卡片的展开/收起状态
@@ -80,62 +80,69 @@ export default function DashboardScreen({
 	};
 
 	/**
-		 * 处理子任务的完成状态切换
-		 * 当所有子任务完成时，自动标记主任务为完成并显示庆祝动画
-		 * @param task - 包含子任务的主任务对象
-		 * @param subtaskId - 要切换状态的子任务ID
-		 */
-		const handleSubtaskToggle = async (task: Task, subtaskId: string) => {
-			// 更新子任务的完成状态
-			const updatedSubtasks = task.subtasks.map((st) =>
-				st.id === subtaskId ? { ...st, completed: !st.completed } : st
+	 * 处理子任务的完成状态切换
+	 * 当所有子任务完成时，自动标记主任务为完成并显示庆祝动画
+	 * @param task - 包含子任务的主任务对象
+	 * @param subtaskId - 要切换状态的子任务ID
+	 */
+	const handleSubtaskToggle = async (task: Task, subtaskId: string) => {
+		// 更新子任务的完成状态
+		const updatedSubtasks = task.subtasks.map((st) =>
+			st.id === subtaskId ? { ...st, completed: !st.completed } : st
+		);
+
+		// 检查是否所有子任务都已完成
+		const allCompleted = updatedSubtasks.every((st) => st.completed);
+
+		try {
+			// 直接使用 taskService 更新任务
+			const { updateTask } = await import("@/lib/taskService");
+			const { supabase } = await import("@/lib/supabaseClient");
+
+			// 获取当前用户
+			const {
+				data: { user },
+			} = await supabase.auth.getUser();
+			if (!user) {
+				throw new Error("用户未登录");
+			}
+
+			// 更新任务状态
+			await updateTask(
+				task.id,
+				{
+					subtasks: updatedSubtasks,
+					completed: allCompleted,
+				},
+				user.id
 			);
 
-			// 检查是否所有子任务都已完成
-			const allCompleted = updatedSubtasks.every((st) => st.completed);
-
-			try {
-				// 直接使用 taskService 更新任务
-				const { updateTask } = await import('@/lib/taskService');
-				const { supabase } = await import('@/lib/supabaseClient');
-				
-				// 获取当前用户
-				const { data: { user } } = await supabase.auth.getUser();
-				if (!user) {
-					throw new Error('用户未登录');
-				}
-
-				// 更新任务状态
-				await updateTask(task.id, {
-					subtasks: updatedSubtasks,
-					completed: allCompleted
-				}, user.id);
-
-				// 如果任务完成，触发庆祝动画
-				if (allCompleted) {
-					showCelebration();
-				}
-
-				// 更新成功后刷新任务列表
-				if (onTaskUpdate) {
-					onTaskUpdate(accessToken);
-				} else {
-					await loadUserTasks();
-				}
-			} catch (error) {
-				console.error("Error updating task:", error);
-				alert('更新任务失败，请重试');
+			// 如果任务完成，触发庆祝动画
+			if (allCompleted) {
+				showCelebration();
 			}
-		};
 
-		/**
-		 * 显示庆祝动画
-		 */
-		const showCelebration = () => {
-			// 创建庆祝元素
-			const celebration = document.createElement('div');
-			celebration.className = 'fixed inset-0 pointer-events-none z-50 flex items-center justify-center';
-			celebration.innerHTML = `
+			// 更新成功后刷新任务列表
+			if (onTaskUpdate) {
+				onTaskUpdate(accessToken);
+			} else {
+				await loadUserTasks();
+			}
+		} catch (error) {
+			console.error("Error updating task:", error);
+			alert("更新任务失败，请重试");
+		}
+	};
+
+	/**
+	 * 显示庆祝动画
+	 */
+	const showCelebration = () => {
+		// 创建庆祝元素
+		const celebration = document.createElement("div");
+		celebration.className =
+			"fixed inset-0 pointer-events-none z-50 flex items-center justify-center";
+		celebration.innerHTML = `
 				<div class="celebration-container">
 					<div class="text-6xl animate-bounce">🎉</div>
 					<div class="text-2xl text-purple-600 font-bold mt-4 animate-pulse">任务完成！</div>
@@ -143,9 +150,9 @@ export default function DashboardScreen({
 				</div>
 			`;
 
-			// 添加样式
-			const style = document.createElement('style');
-			style.textContent = `
+		// 添加样式
+		const style = document.createElement("style");
+		style.textContent = `
 				.celebration-container {
 					background: rgba(255, 255, 255, 0.95);
 					backdrop-filter: blur(10px);
@@ -162,20 +169,20 @@ export default function DashboardScreen({
 				}
 			`;
 
-			document.head.appendChild(style);
-			document.body.appendChild(celebration);
+		document.head.appendChild(style);
+		document.body.appendChild(celebration);
 
-			// 2秒后移除庆祝动画
-			setTimeout(() => {
-				celebration.remove();
-				style.remove();
-			}, 2000);
+		// 2秒后移除庆祝动画
+		setTimeout(() => {
+			celebration.remove();
+			style.remove();
+		}, 2000);
 
-			// 添加震动反馈（如果支持）
-			if (navigator.vibrate) {
-				navigator.vibrate([100, 50, 100]);
-			}
-		};
+		// 添加震动反馈（如果支持）
+		if (navigator.vibrate) {
+			navigator.vibrate([100, 50, 100]);
+		}
+	};
 
 	// 筛选出进行中的任务（未完成的任务）
 	const activeTasks = tasks?.filter((t) => !t.completed) || [];
@@ -238,16 +245,16 @@ export default function DashboardScreen({
 						</div>
 
 						{/* 专注按钮，仅在未完成任务中显示 */}
-					{!isCompleted && (
-						<Button
-							size="sm"
-							onClick={() => handleStartFocus(task)}
-							className="bg-purple-600 hover:bg-purple-700 gap-1 min-h-[44px] min-w-[80px]"
-						>
-							<Play className="w-4 h-4" />
-							<span className="text-xs">专注</span>
-						</Button>
-					)}
+						{!isCompleted && (
+							<Button
+								size="sm"
+								onClick={() => handleStartFocus(task)}
+								className="bg-purple-600 hover:bg-purple-700 gap-1 min-h-[44px] min-w-[80px]"
+							>
+								<Play className="w-4 h-4" />
+								<span className="text-xs">专注</span>
+							</Button>
+						)}
 					</div>
 
 					{/* 任务进度显示区域 */}
@@ -318,25 +325,27 @@ export default function DashboardScreen({
 				</div>
 
 				{/* 空状态提示 - 当没有任何任务时显示 */}
-					{activeTasks.length === 0 && completedTasks.length === 0 && (
-						<div className="text-center py-16">
-							<div className="text-6xl mb-4">🧠</div>
-							<h3 className="text-xl text-gray-600 mb-2">还没有任何任务</h3>
-							<p className="text-gray-400 mb-6">把你脑子里的想法倾倒出来，让我们帮你整理</p>
-							<Button
-								onClick={() => {
-									if (onNavigate) {
-										onNavigate("input");
-									} else {
-										router.push("/input");
-									}
-								}}
-								className="bg-purple-600 hover:bg-purple-700 min-h-[48px] px-8"
-							>
-								开始添加想法
-							</Button>
-						</div>
-					)}
+				{activeTasks.length === 0 && completedTasks.length === 0 && (
+					<div className="text-center py-16">
+						<div className="text-6xl mb-4">🧠</div>
+						<h3 className="text-xl text-gray-600 mb-2">还没有任何任务</h3>
+						<p className="text-gray-400 mb-6">
+							把你脑子里的想法倾倒出来，让我们帮你整理
+						</p>
+						<Button
+							onClick={() => {
+								if (onNavigate) {
+									onNavigate("input");
+								} else {
+									router.push("/input");
+								}
+							}}
+							className="bg-purple-600 hover:bg-purple-700 min-h-[48px] px-8"
+						>
+							开始添加想法
+						</Button>
+					</div>
+				)}
 
 				{/* 进行中的任务列表 */}
 				{activeTasks.length > 0 && (
@@ -357,42 +366,42 @@ export default function DashboardScreen({
 			</div>
 
 			{/* 底部导航栏 */}
-				<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
-					<div className="max-w-md mx-auto flex justify-around">
-						{/* 添加想法按钮 */}
-						<Button
-							variant="ghost"
-							size="lg"
-							onClick={() => {
-								if (onNavigate) {
-									onNavigate("input");
-								} else {
-									router.push("/input");
-								}
-							}}
-							className="flex flex-col gap-1 h-auto py-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-						>
-							<Home className="w-6 h-6" />
-							<span className="text-xs">添加想法</span>
-						</Button>
-						{/* 设置按钮 */}
-						<Button
-							variant="ghost"
-							size="lg"
-							onClick={() => {
-								if (onNavigate) {
-									onNavigate("settings");
-								} else {
-									router.push("/settings");
-								}
-							}}
-							className="flex flex-col gap-1 h-auto py-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-						>
-							<Settings className="w-6 h-6" />
-							<span className="text-xs">设置</span>
-						</Button>
-					</div>
+			<div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
+				<div className="max-w-md mx-auto flex justify-around">
+					{/* 添加想法按钮 */}
+					<Button
+						variant="ghost"
+						size="lg"
+						onClick={() => {
+							if (onNavigate) {
+								onNavigate("input");
+							} else {
+								router.push("/input");
+							}
+						}}
+						className="flex flex-col gap-1 h-auto py-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+					>
+						<Home className="w-6 h-6" />
+						<span className="text-xs">添加想法</span>
+					</Button>
+					{/* 设置按钮 */}
+					<Button
+						variant="ghost"
+						size="lg"
+						onClick={() => {
+							if (onNavigate) {
+								onNavigate("settings");
+							} else {
+								router.push("/settings");
+							}
+						}}
+						className="flex flex-col gap-1 h-auto py-3 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+					>
+						<Settings className="w-6 h-6" />
+						<span className="text-xs">设置</span>
+					</Button>
 				</div>
+			</div>
 		</div>
 	);
 }
